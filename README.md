@@ -1,1 +1,1 @@
-wget --no-check-certificate "https://raw.githubusercontent.com/mizmazegt/vwrt-manager/main/cgi-bin/update-vwrt.sh" -O /tmp/update-vwrt.sh && chmod +x /tmp/update-vwrt.sh && sed -i 's/\r$//' /tmp/update-vwrt.sh && /tmp/update-vwrt.sh
+wget --no-check-certificate "https://raw.githubusercontent.com/mizmazegt/sonwrt/main/cgi-bin/update-sonwrt.sh" -O /tmp/update-sonwrt.sh && chmod +x /tmp/update-sonwrt.sh && sed -i 's/\r$//' /tmp/update-sonwrt.sh && /tmp/update-sonwrt.sh
