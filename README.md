@@ -1,0 +1,1 @@
+wget --no-check-certificate "https://raw.githubusercontent.com/mizmazegt/vwrt-manager/main/cgi-bin/update-vwrt.sh" -O /tmp/update-vwrt.sh && chmod +x /tmp/update-vwrt.sh && sed -i 's/\r$//' /tmp/update-vwrt.sh && /tmp/update-vwrt.sh
