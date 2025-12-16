@@ -429,16 +429,28 @@ function formatBytes(_0x249f8e) {
  * Hàm này lấy thông tin về proxy, RAM, ROM, và các thiết bị kết nối,
  * sau đó hiển thị chúng trên trang web.
  */
+
+let loadStatusInterval = null;
+let proxyEventHandlers = new Map();
+
 function loadStatus() {
-  // Xóa các event listeners cũ trước khi thêm mới
-  cleanupProxyEventListeners();
+  // Hủy interval cũ nếu có
+  if (loadStatusInterval) {
+    clearInterval(loadStatusInterval);
+  }
+  
+  // Xóa tất cả event listeners cũ
+  cleanupAllEventListeners();
   
   fetch("/cgi-bin/status.sh")
     .then(response => response.json())
     .then(statusData => {
-      // Lưu dữ liệu vào biến toàn cục với cơ chế cleanup
-      window.lastProxyList = statusData.proxies || [];
+      // Giải phóng bộ nhớ cũ trước khi gán mới
+      if (window.lastProxyList) {
+        window.lastProxyList = null;
+      }
       
+      window.lastProxyList = statusData.proxies || [];
       const proxies = statusData.proxies || [];
       const totalProxies = proxies.length;
       const onlineProxies = proxies.filter(proxy => proxy.status === "online").length;
@@ -446,13 +458,12 @@ function loadStatus() {
       const quickStatusElement = document.getElementById("quick-status");
       
       if (quickStatusElement) {
-        // Thay thế nội dung thay vì nối chuỗi
         quickStatusElement.innerHTML = `
           <div><strong>🌐 IP:</strong> ${statusData.ip}</div>
           <div><strong>📡 Proxy:</strong> ${statusData.proxy_enabled === '1' ? "🟢 Bật" : "🔴 Tắt"}</div>
           <div><strong>🕒 Uptime:</strong> ${statusData.uptime}</div>
           <div><strong>🧠 RAM:</strong> ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${statusData.ram_percent}%)</div>
-          <div><strong>💾 ROM:</strong> ${formatBytes(statusData.um_used)} / ${formatBytes(statusData.rom_total)} (${statusData.rom_percent}%)</div>
+          <div><strong>💾 ROM:</strong> ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${statusData.rom_percent}%)</div>
           <div><strong>⚙️ Load Avg:</strong> ${statusData.loadavg}</div>
         `;
       }
@@ -469,9 +480,11 @@ function loadStatus() {
       const proxySearch = document.getElementById('proxy-search')?.value || '';
       
       if (proxyListElement && statusData.proxies?.length) {
-        // Thay thế toàn bộ nội dung proxy list thay vì nối chuỗi
+        // Xóa nội dung cũ hoàn toàn
         proxyListElement.innerHTML = '';
-        renderProxyList(statusData.proxies);
+        
+        // Render proxy list với cách tiếp cận hiệu quả hơn
+        renderProxyList(proxyListElement, statusData.proxies);
         
         // Chỉ gọi test functions một lần duy nhất
         statusData.proxies.forEach((proxy, index) => {
@@ -490,6 +503,8 @@ function loadStatus() {
       
       filterProxies();
       restoreSelectedProxies();
+      
+      // Setup event listeners mới với cleanup
       setupProxyEventListeners();
       updateActionButtonsVisibility();
       
@@ -522,36 +537,39 @@ function loadStatus() {
     });
 }
 
-// Hàm cleanup event listeners
-function cleanupProxyEventListeners() {
+// Hàm cleanup event listeners hoàn toàn
+function cleanupAllEventListeners() {
+  // Xóa tất cả event listeners từ các phần tử proxy
   const checkboxes = document.querySelectorAll(".proxy-checkbox");
   checkboxes.forEach(checkbox => {
-    // Xóa tất cả event listeners
+    // Lấy tất cả event listeners và xóa
     const newCheckbox = checkbox.cloneNode(true);
     checkbox.parentNode.replaceChild(newCheckbox, checkbox);
   });
+  
+  // Xóa các handler trong map
+  proxyEventHandlers.clear();
 }
 
-// Hàm setup event listeners mới
+// Hàm setup event listeners với cleanup
 function setupProxyEventListeners() {
   const checkboxes = document.querySelectorAll(".proxy-checkbox");
   checkboxes.forEach(checkbox => {
-    checkbox.addEventListener("change", handleProxyCheckboxChange);
+    // Tạo handler mới
+    const handler = () => {
+      const checked = document.querySelectorAll(".proxy-checkbox:checked");
+      selectedAliases = Array.from(checked).map(cb => cb.dataset.alias);
+      updateActionButtonsVisibility();
+    };
+    
+    // Lưu handler vào map để có thể xóa sau
+    proxyEventHandlers.set(checkbox, handler);
+    checkbox.addEventListener("change", handler);
   });
 }
 
-// Hàm xử lý thay đổi checkbox
-function handleProxyCheckboxChange() {
-  const checked = document.querySelectorAll(".proxy-checkbox:checked");
-  selectedAliases = Array.from(checked).map(cb => cb.dataset.alias);
-  updateActionButtonsVisibility();
-}
-
-// Hàm render proxy list
-function renderProxyList(proxies) {
-  const proxyListElement = document.getElementById("proxy-list");
-  if (!proxyListElement) return;
-  
+// Hàm render proxy list hiệu quả hơn
+function renderProxyList(container, proxies) {
   proxies.forEach((proxy, index) => {
     const proxyCard = document.createElement('div');
     proxyCard.className = "device-card";
@@ -578,14 +596,13 @@ function renderProxyList(proxies) {
       <p>🔌 Port: <span class="proxy-port">${proxy.port}</span></p>
       <p>📡 Protocol: <span class="proxy-protocol">${proxy.protocol}</span></p>
       
-      
       <p>🔗 URL Test: <span id="urltest-status-${index}" class="urltest-result">Đang kiểm tra...</span></p>
     `;
-    proxyListElement.appendChild(proxyCard);
+    container.appendChild(proxyCard);
   });
 }
 
-// Hàm cleanup bộ nhớ
+// Hàm cleanup bộ nhớ toàn diện
 function cleanupMemory() {
   // Giải phóng các biến tạm
   const tempElements = document.querySelectorAll('.temp-element');
@@ -607,7 +624,7 @@ function cleanupMemory() {
   }
 }
 
-// Các hàm helper khác...
+// Hàm helper khác...
 function updateSystemInfo(statusData) {
   document.getElementById("hostname").textContent = statusData.hostname || '-';
   document.getElementById('model').textContent = statusData.model || '-';
@@ -672,14 +689,13 @@ function updateProxySwitch(enabled) {
 }
 
 function restoreSelectedProxies() {
-  selectedAliases.forEach(alias => {
-    const checkbox = document.querySelector(".proxy-checkbox[data-alias=\"" + alias + "\"]");
-    if (checkbox) {
-      checkbox.checked = true;
-    }
-  });
+  // Giải phóng selectedAliases cũ
+  selectedAliases = [];
+  
+  // Chỉ khôi phục các proxy được chọn hiện tại
+  const checkboxes = document.querySelectorAll(".proxy-checkbox:checked");
+  selectedAliases = Array.from(checkboxes).map(cb => cb.dataset.alias);
 }
-
 
 
 window.loadStatus = loadStatus;
