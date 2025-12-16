@@ -430,97 +430,90 @@ function formatBytes(_0x249f8e) {
  * sau đó hiển thị chúng trên trang web.
  */
 function loadStatus() {
-  // Bước 1: Gửi yêu cầu đến endpoint API để lấy dữ liệu trạng thái
   fetch("/cgi-bin/status.sh")
-    .then(response => response.json()) // Chuyển đổi phản hồi sang định dạng JSON
+    .then(response => response.json())
     .then(statusData => {
-      // Lưu danh sách proxy vào biến toàn cục để sử dụng ở nơi khác
       window.lastProxyList = statusData.proxies || [];
-      const proxyList = statusData.proxies || [];
-
-      // Bước 2: Tính toán số lượng proxy
-      const totalProxies = proxyList.length;
-      const onlineProxies = proxyList.filter(proxy => proxy.status === "online").length;
+      const proxies = statusData.proxies || [];
+      const totalProxies = proxies.length;
+      const onlineProxies = proxies.filter(proxy => proxy.status === "online").length;
       const offlineProxies = totalProxies - onlineProxies;
-      const isProxyEnabled = statusData.proxy_enabled === '1';
-
-      // Bước 3: Cập nhật phần "Trạng thái nhanh" (Quick Status)
       const quickStatusElement = document.getElementById("quick-status");
+      
       if (quickStatusElement) {
         quickStatusElement.innerHTML = `
           <div><strong>🌐 IP:</strong> ${statusData.ip}</div>
-          <div><strong>📡 Proxy:</strong> ${isProxyEnabled ? "🟢 Bật" : "🔴 Tắt"}</div>
+          <div><strong>📡 Proxy:</strong> ${statusData.proxy_enabled === '1' ? "🟢 Bật" : "🔴 Tắt"}</div>
           <div><strong>🕒 Uptime:</strong> ${statusData.uptime}</div>
           <div><strong>🧠 RAM:</strong> ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${statusData.ram_percent}%)</div>
           <div><strong>💾 ROM:</strong> ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${statusData.rom_percent}%)</div>
           <div><strong>⚙️ Load Avg:</strong> ${statusData.loadavg}</div>
         `;
       }
-
-      // Bước 4: Cập nhật các thông tin chi tiết của hệ thống
+      
       document.getElementById("hostname").textContent = statusData.hostname || '-';
       document.getElementById('model').textContent = statusData.model || '-';
       document.getElementById("uptime").textContent = statusData.uptime || '-';
       document.getElementById("kernel").textContent = statusData.kernel || '-';
       document.getElementById('version').textContent = statusData.version || '-';
       document.getElementById('loadavg').textContent = statusData.loadavg || '-';
-
-      // Bước 5: Cập nhật thông tin và thanh tiến trình cho RAM
-      // === CÁC TRƯỜNG BỊ THIẾU ĐÃ ĐƯỢC THÊM VÀO LẠI ===
       document.getElementById('ram-total').textContent = formatBytes(statusData.ram_total);
       document.getElementById("ram-used").textContent = formatBytes(statusData.ram_used);
       document.getElementById("ram-buffer").textContent = formatBytes(statusData.ram_buffer);
       document.getElementById('ram-cache').textContent = formatBytes(statusData.ram_cache);
       document.getElementById('ram-percent').textContent = statusData.ram_percent + " %";
-
-      const ramUsagePercentage = parseInt(statusData.ram_total, 10) > 0
-        ? (parseInt(statusData.ram_used, 10) / parseInt(statusData.ram_total, 10)) * 100
-        : 0;
-      const ramProgressBar = document.querySelector(".ram-progress-bar");
+      
+      let ramUsagePercent = 0;
+      if (parseInt(statusData.ram_total, 10) > 0) {
+        ramUsagePercent = parseInt(statusData.ram_used, 10) / parseInt(statusData.ram_total, 10) * 100;
+      }
+      
+      let ramProgressBar = document.querySelector(".ram-progress-bar");
       if (ramProgressBar) {
-        ramProgressBar.style.width = ramUsagePercentage.toFixed(1) + '%';
+        ramProgressBar.style.width = ramUsagePercent.toFixed(1) + '%';
       }
-      const ramTextElement = document.getElementById('ram-text');
+      
+      let ramTextElement = document.getElementById('ram-text');
       if (ramTextElement) {
-        ramTextElement.textContent = `Sử dụng RAM: ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${ramUsagePercentage.toFixed(1)}%)`;
+        ramTextElement.textContent = `Sử dụng RAM: ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${ramUsagePercent.toFixed(1)}%)`;
       }
-
-      // Bước 6: Cập nhật thông tin và thanh tiến trình cho ROM
-      // === CÁC TRƯỜNG BỊ THIẾU ĐÃ ĐƯỢC THÊM VÀO LẠI ===
+      
       document.getElementById("rom-total").textContent = formatBytes(statusData.rom_total);
       document.getElementById('rom-used').textContent = formatBytes(statusData.rom_used);
       document.getElementById("rom-free").textContent = formatBytes(statusData.rom_free);
       document.getElementById("rom-percent").textContent = statusData.rom_percent + " %";
-
-      const romUsagePercentage = parseInt(statusData.rom_total, 10) > 0
-        ? (parseInt(statusData.rom_used, 10) / parseInt(statusData.rom_total, 10)) * 100
-        : 0;
-      const romProgressBar = document.querySelector('.rom-progress-bar');
+      
+      let romUsagePercent = 0;
+      if (statusData.rom_total > 0) {
+        romUsagePercent = parseInt(statusData.rom_used, 10) / parseInt(statusData.rom_total, 10) * 100;
+      }
+      
+      let romProgressBar = document.querySelector('.rom-progress-bar');
       if (romProgressBar) {
-        romProgressBar.style.width = romUsagePercentage.toFixed(1) + '%';
+        romProgressBar.style.width = romUsagePercent.toFixed(1) + '%';
       }
-      const romTextElement = document.getElementById("rom-text");
+      
+      let romTextElement = document.getElementById("rom-text");
       if (romTextElement) {
-        romTextElement.textContent = `Sử dụng ROM: ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${romUsagePercentage.toFixed(1)}%)`;
+        romTextElement.textContent = `Sử dụng ROM: ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${romUsagePercent.toFixed(1)}%)`;
       }
-
-      // Bước 7: Cập nhật số lượng proxy và trạng thái của công tắc chính
+      
       document.getElementById("proxy-total").textContent = totalProxies;
       document.getElementById("proxy-online").textContent = onlineProxies + " ✅";
       document.getElementById("proxy-offline").textContent = offlineProxies + " ❌";
-      document.getElementById("mainSwitch").checked = isProxyEnabled;
-      document.getElementById("main-proxy-switch").checked = isProxyEnabled;
-
-      // Bước 8: Lưu lại các giá trị bộ lọc hiện tại để khôi phục sau
-      const currentTypeFilter = document.getElementById("proxy-type-filter")?.value || '';
-      const currentStatusFilter = document.getElementById("proxy-status-filter")?.value || '';
-      const currentSearchValue = document.getElementById('proxy-search')?.value || '';
-
-      // Bước 9: Hiển thị danh sách các proxy
-      const proxyListContainer = document.getElementById("proxy-list");
-      if (proxyListContainer && proxyList.length) {
-        // Tạo HTML cho mỗi thẻ proxy bằng template literal
-        proxyListContainer.innerHTML = proxyList.map((proxy, index) => `
+      
+      const proxyEnabled = statusData.proxy_enabled === '1';
+      document.getElementById("mainSwitch").checked = proxyEnabled;
+      document.getElementById("main-proxy-switch").checked = proxyEnabled;
+      
+      const proxyListElement = document.getElementById("proxy-list");
+      const proxyTypeFilter = document.getElementById("proxy-type-filter")?.value || '';
+      const proxyStatusFilter = document.getElementById("proxy-status-filter")?.value || '';
+      const proxySearch = document.getElementById('proxy-search')?.value || '';
+      
+      if (proxyListElement && statusData.proxies?.length) {
+        window.lastProxyList = statusData.proxies;
+        proxyListElement.innerHTML = statusData.proxies.map((proxy, index) => `
           <div class="device-card">
             <div class="flex items-center w-full">
               <div class="flex items-center gap-2">
@@ -535,7 +528,7 @@ function loadStatus() {
               <span style="color:#2563eb; font-weight:600;">🌐 IP:</span>
               <span
                 id="ip-${index}"
-                class="proxy-ip ip-highlight"
+                class="proxy-ip blur-sm ip-highlight"
                 title="Click để copy"
                 onclick="copyToClipboard('${proxy.ip}')"
                 style="cursor:pointer;"
@@ -543,75 +536,79 @@ function loadStatus() {
             </p>
             <p>🔌 Port: <span class="proxy-port">${proxy.port}</span></p>
             <p>📡 Protocol: <span class="proxy-protocol">${proxy.protocol}</span></p>
-            
+            <p>📶 Ping: <span id="ping-status-${index}" class="ping-result">Đang kiểm tra...</span></p>
+            <p>📡TCPing: <span id="tcping-status-${index}" class="tcping-result">Đang kiểm tra...</span></p>
+            <p>🔗 URL Test: <span id="urltest-status-${index}" class="urltest-result">Đang kiểm tra...</span></p>
           </div>
         `).join('');
-
-        // Bắt đầu kiểm tra tự động cho mỗi proxy
         
+        statusData.proxies.forEach((proxy, index) => {
+          testPingAuto(proxy.real_name, index);
+          testTCPingAuto(proxy.real_name, index);
+          testURLAuto(proxy.real_name, index);
+        });
       } else {
-        proxyListContainer.innerHTML = "<p class='text-gray-500'>Không có proxy nào.</p>";
+        proxyListElement.innerHTML = "<p class='text-gray-500'>Không có proxy nào.</p>";
       }
-
-      // Bước 10: Khôi phục lại giá trị của các bộ lọc và áp dụng chúng
-      document.getElementById("proxy-type-filter").value = currentTypeFilter;
-      document.getElementById("proxy-status-filter").value = currentStatusFilter;
-      document.getElementById("proxy-search").value = currentSearchValue;
+      
+      document.getElementById("proxy-type-filter").value = proxyTypeFilter;
+      document.getElementById("proxy-status-filter").value = proxyStatusFilter;
+      document.getElementById("proxy-search").value = proxySearch;
+      
       filterProxies();
-
-      // Bước 11: Khôi phục trạng thái các checkbox đã được chọn
+      
       selectedAliases.forEach(alias => {
-        const checkbox = document.querySelector(`.proxy-checkbox[data-alias="${alias}"]`);
+        const checkbox = document.querySelector(".proxy-checkbox[data-alias=\"" + alias + "\"]");
         if (checkbox) {
           checkbox.checked = true;
         }
       });
+      
       updateActionButtonsVisibility();
-
-      // Bước 12: Thêm sự kiện lắng nghe cho các checkbox và cập nhật trạng thái ẩn/hiện IP
+      
       document.querySelectorAll(".proxy-checkbox").forEach(checkbox => {
         const alias = checkbox.dataset.alias;
         const index = checkbox.dataset.index;
-        let ipElement = document.getElementById(`ip-${index}`);
+        let ipElement = document.getElementById("ip-" + index);
         if (!ipElement) {
-          ipElement = checkbox.closest('.device-card')?.querySelector("[id^='ip-']");
+          ipElement = checkbox.closest('.device-card')?.querySelector("[id^=\"ip-\"]");
         }
         if (ipElement && ipHiddenState[alias]) {
           ipElement.classList.add('blur-sm');
         } else if (ipElement) {
           ipElement.classList.remove("blur-sm");
         }
-
+        
         checkbox.addEventListener("change", () => {
-          const checkedBoxes = document.querySelectorAll(".proxy-checkbox:checked");
-          selectedAliases = Array.from(checkedBoxes).map(cb => cb.dataset.alias);
+          const checkedCheckboxes = document.querySelectorAll(".proxy-checkbox:checked");
+          selectedAliases = Array.from(checkedCheckboxes).map(cb => cb.dataset.alias);
           updateActionButtonsVisibility();
         });
       });
-
-      // Bước 13: Kiểm tra trạng thái proxy và ghi log nếu có thay đổi
-      const systemLogElement = document.querySelector(".system-log");
-      if (systemLogElement && window.lastProxyEnabled !== isProxyEnabled) {
-        const timeString = new Date().toLocaleTimeString("vi-VN");
-        const statusMessage = isProxyEnabled ? "✅ Proxy hiện đang BẬT" : "⛔ Proxy hiện đang TẮT";
-        systemLogElement.textContent += `\n[${timeString}] ${statusMessage}`;
-        systemLogElement.scrollTop = systemLogElement.scrollHeight;
-        window.lastProxyEnabled = isProxyEnabled;
+      
+      const searchValue = document.getElementById('proxy-search')?.value?.trim();
+      if (searchValue) {
+        filterProxies();
       }
-
-      // Bước 14: Tải lại danh sách các thiết bị đã kết nối
+      
+      const systemLog = document.querySelector(".system-log");
+      if (systemLog && window.lastProxyEnabled !== proxyEnabled) {
+        const currentTime = new Date().toLocaleTimeString("vi-VN");
+        const statusMessage = proxyEnabled ? "✅ Proxy hiện đang BẬT" : "⛔ Proxy hiện đang TẮT";
+        systemLog.textContent += `\n[${currentTime}] ${statusMessage}`;
+        systemLog.scrollTop = systemLog.scrollHeight;
+        window.lastProxyEnabled = proxyEnabled;
+      }
+      
       loadConnectedDevices();
-
     })
     .catch(() => {
-      // Xử lý lỗi nếu không thể tải dữ liệu
       const quickStatusElement = document.getElementById("quick-status");
       if (quickStatusElement) {
         quickStatusElement.innerHTML = "<p class='text-red-500'>⚠️ Không thể tải trạng thái hệ thống.</p>";
       }
     });
 }
-
 
 
 
