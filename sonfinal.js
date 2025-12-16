@@ -536,15 +536,15 @@ function loadStatus() {
             </p>
             <p>🔌 Port: <span class="proxy-port">${proxy.port}</span></p>
             <p>📡 Protocol: <span class="proxy-protocol">${proxy.protocol}</span></p>
-            <p>📶 Ping: <span id="ping-status-${index}" class="ping-result">Đang kiểm tra...</span></p>
-            <p>📡TCPing: <span id="tcping-status-${index}" class="tcping-result">Đang kiểm tra...</span></p>
+            
+            
             <p>🔗 URL Test: <span id="urltest-status-${index}" class="urltest-result">Đang kiểm tra...</span></p>
           </div>
         `).join('');
         
         statusData.proxies.forEach((proxy, index) => {
-          testPingAuto(proxy.real_name, index);
-          testTCPingAuto(proxy.real_name, index);
+         
+          
           testURLAuto(proxy.real_name, index);
         });
       } else {
