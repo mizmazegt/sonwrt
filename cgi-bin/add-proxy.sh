@@ -54,7 +54,7 @@ if [ -z "$REMARKS" ]; then
 fi
 
 uci set passwall2."$SECTION".remarks="${REMARKS:-$IP}"
-uci set passwall2."$SECTION".type="Sing-Box"
+uci set passwall2."$SECTION".type="sing-box"
 uci set passwall2."$SECTION".protocol="$(echo "$PROTOCOL" | tr 'A-Z' 'a-z')"
 uci set passwall2."$SECTION".address="$IP"
 uci set passwall2."$SECTION".port="$PORT"
