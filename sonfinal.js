@@ -2374,3 +2374,30 @@ function toggleExpandedView() {
     }
 }
 
+
+async function testURLAuto(urlId, statusElementId) {
+  const statusElement = document.getElementById("urltest-status-" + statusElementId);
+  if (statusElement) {
+    statusElement.textContent = "Đang kiểm tra...";
+    statusElement.className = "urltest-result urltest-testing";
+  }
+  
+  try {
+    const response = await fetch("/lua-api/proxy_test.lua?action=urltest&id=" + urlId);
+    const result = await response.json();
+    
+    if (result.success) {
+      statusElement.textContent = 'OK';
+      statusElement.className = "urltest-result urltest-ok";
+    } else {
+      statusElement.textContent = "Fail";
+      statusElement.className = "urltest-result urltest-fail";
+    }
+  } catch {
+    if (statusElement) {
+      statusElement.textContent = "ERR";
+      statusElement.className = "urltest-result urltest-fail";
+    }
+  }
+}
+
