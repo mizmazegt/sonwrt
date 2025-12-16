@@ -430,10 +430,15 @@ function formatBytes(_0x249f8e) {
  * sau đó hiển thị chúng trên trang web.
  */
 function loadStatus() {
+  // Xóa các event listeners cũ trước khi thêm mới
+  cleanupProxyEventListeners();
+  
   fetch("/cgi-bin/status.sh")
     .then(response => response.json())
     .then(statusData => {
+      // Lưu dữ liệu vào biến toàn cục với cơ chế cleanup
       window.lastProxyList = statusData.proxies || [];
+      
       const proxies = statusData.proxies || [];
       const totalProxies = proxies.length;
       const onlineProxies = proxies.filter(proxy => proxy.status === "online").length;
@@ -441,70 +446,22 @@ function loadStatus() {
       const quickStatusElement = document.getElementById("quick-status");
       
       if (quickStatusElement) {
+        // Thay thế nội dung thay vì nối chuỗi
         quickStatusElement.innerHTML = `
           <div><strong>🌐 IP:</strong> ${statusData.ip}</div>
           <div><strong>📡 Proxy:</strong> ${statusData.proxy_enabled === '1' ? "🟢 Bật" : "🔴 Tắt"}</div>
           <div><strong>🕒 Uptime:</strong> ${statusData.uptime}</div>
           <div><strong>🧠 RAM:</strong> ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${statusData.ram_percent}%)</div>
-          <div><strong>💾 ROM:</strong> ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${statusData.rom_percent}%)</div>
+          <div><strong>💾 ROM:</strong> ${formatBytes(statusData.um_used)} / ${formatBytes(statusData.rom_total)} (${statusData.rom_percent}%)</div>
           <div><strong>⚙️ Load Avg:</strong> ${statusData.loadavg}</div>
         `;
       }
       
-      document.getElementById("hostname").textContent = statusData.hostname || '-';
-      document.getElementById('model').textContent = statusData.model || '-';
-      document.getElementById("uptime").textContent = statusData.uptime || '-';
-      document.getElementById("kernel").textContent = statusData.kernel || '-';
-      document.getElementById('version').textContent = statusData.version || '-';
-      document.getElementById('loadavg').textContent = statusData.loadavg || '-';
-      document.getElementById('ram-total').textContent = formatBytes(statusData.ram_total);
-      document.getElementById("ram-used").textContent = formatBytes(statusData.ram_used);
-      document.getElementById("ram-buffer").textContent = formatBytes(statusData.ram_buffer);
-      document.getElementById('ram-cache').textContent = formatBytes(statusData.ram_cache);
-      document.getElementById('ram-percent').textContent = statusData.ram_percent + " %";
-      
-      let ramUsagePercent = 0;
-      if (parseInt(statusData.ram_total, 10) > 0) {
-        ramUsagePercent = parseInt(statusData.ram_used, 10) / parseInt(statusData.ram_total, 10) * 100;
-      }
-      
-      let ramProgressBar = document.querySelector(".ram-progress-bar");
-      if (ramProgressBar) {
-        ramProgressBar.style.width = ramUsagePercent.toFixed(1) + '%';
-      }
-      
-      let ramTextElement = document.getElementById('ram-text');
-      if (ramTextElement) {
-        ramTextElement.textContent = `Sử dụng RAM: ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${ramUsagePercent.toFixed(1)}%)`;
-      }
-      
-      document.getElementById("rom-total").textContent = formatBytes(statusData.rom_total);
-      document.getElementById('rom-used').textContent = formatBytes(statusData.rom_used);
-      document.getElementById("rom-free").textContent = formatBytes(statusData.rom_free);
-      document.getElementById("rom-percent").textContent = statusData.rom_percent + " %";
-      
-      let romUsagePercent = 0;
-      if (statusData.rom_total > 0) {
-        romUsagePercent = parseInt(statusData.rom_used, 10) / parseInt(statusData.rom_total, 10) * 100;
-      }
-      
-      let romProgressBar = document.querySelector('.rom-progress-bar');
-      if (romProgressBar) {
-        romProgressBar.style.width = romUsagePercent.toFixed(1) + '%';
-      }
-      
-      let romTextElement = document.getElementById("rom-text");
-      if (romTextElement) {
-        romTextElement.textContent = `Sử dụng ROM: ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${romUsagePercent.toFixed(1)}%)`;
-      }
-      
-      document.getElementById("proxy-total").textContent = totalProxies;
-      document.getElementById("proxy-online").textContent = onlineProxies + " ✅";
-      document.getElementById("proxy-offline").textContent = offlineProxies + " ❌";
-      
-      const proxyEnabled = statusData.proxy_enabled === '1';
-      document.getElementById("mainSwitch").checked = proxyEnabled;
-      document.getElementById("main-proxy-switch").checked = proxyEnabled;
+      // Cập nhật các phần tử đơn lẻ
+      updateSystemInfo(statusData);
+      updateResourceUsage(statusData);
+      updateProxyStats(totalProxies, onlineProxies, offlineProxies);
+      updateProxySwitch(statusData.proxy_enabled === '1');
       
       const proxyListElement = document.getElementById("proxy-list");
       const proxyTypeFilter = document.getElementById("proxy-type-filter")?.value || '';
@@ -512,38 +469,13 @@ function loadStatus() {
       const proxySearch = document.getElementById('proxy-search')?.value || '';
       
       if (proxyListElement && statusData.proxies?.length) {
-        window.lastProxyList = statusData.proxies;
-        proxyListElement.innerHTML = statusData.proxies.map((proxy, index) => `
-          <div class="device-card">
-            <div class="flex items-center w-full">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="proxy-checkbox" data-alias="${proxy._name || proxy.real_name}">
-                <button class="icon-btn" onclick="deleteProxy('${proxy.real_name}')">🗑️</button>
-                <button class="icon-btn" onclick="toggleIp(${index}, '${proxy.alias}')">👁️</button>
-                <button class="icon-btn" onclick="editProxy(${index})">✏️</button>
-              </div>
-            </div>
-            <h2 class="proxy-alias text-base font-semibold truncate">🏷️ Tên: ${proxy.alias || "Không tên"}</h2>
-            <p>
-              <span style="color:#2563eb; font-weight:600;">🌐 IP:</span>
-              <span
-                id="ip-${index}"
-                class="proxy-ip blur-sm ip-highlight"
-                title="Click để copy"
-                onclick="copyToClipboard('${proxy.ip}')"
-                style="cursor:pointer;"
-              >${proxy.ip}</span>
-            </p>
-            <p>🔌 Port: <span class="proxy-port">${proxy.port}</span></p>
-            <p>📡 Protocol: <span class="proxy-protocol">${proxy.protocol}</span></p>
-            
-            
-            <p>🔗 URL Test: <span id="urltest-status-${index}" class="urltest-result">Đang kiểm tra...</span></p>
-          </div>
-        `).join('');
+        // Thay thế toàn bộ nội dung proxy list thay vì nối chuỗi
+        proxyListElement.innerHTML = '';
+        renderProxyList(statusData.proxies);
         
+        // Chỉ gọi test functions một lần duy nhất
         statusData.proxies.forEach((proxy, index) => {
-         
+          
           
           testURLAuto(proxy.real_name, index);
         });
@@ -551,40 +483,15 @@ function loadStatus() {
         proxyListElement.innerHTML = "<p class='text-gray-500'>Không có proxy nào.</p>";
       }
       
+      // Khôi phục các giá trị filter
       document.getElementById("proxy-type-filter").value = proxyTypeFilter;
       document.getElementById("proxy-status-filter").value = proxyStatusFilter;
       document.getElementById("proxy-search").value = proxySearch;
       
       filterProxies();
-      
-      selectedAliases.forEach(alias => {
-        const checkbox = document.querySelector(".proxy-checkbox[data-alias=\"" + alias + "\"]");
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      });
-      
+      restoreSelectedProxies();
+      setupProxyEventListeners();
       updateActionButtonsVisibility();
-      
-      document.querySelectorAll(".proxy-checkbox").forEach(checkbox => {
-        const alias = checkbox.dataset.alias;
-        const index = checkbox.dataset.index;
-        let ipElement = document.getElementById("ip-" + index);
-        if (!ipElement) {
-          ipElement = checkbox.closest('.device-card')?.querySelector("[id^=\"ip-\"]");
-        }
-        if (ipElement && ipHiddenState[alias]) {
-          ipElement.classList.add('blur-sm');
-        } else if (ipElement) {
-          ipElement.classList.remove("blur-sm");
-        }
-        
-        checkbox.addEventListener("change", () => {
-          const checkedCheckboxes = document.querySelectorAll(".proxy-checkbox:checked");
-          selectedAliases = Array.from(checkedCheckboxes).map(cb => cb.dataset.alias);
-          updateActionButtonsVisibility();
-        });
-      });
       
       const searchValue = document.getElementById('proxy-search')?.value?.trim();
       if (searchValue) {
@@ -592,15 +499,20 @@ function loadStatus() {
       }
       
       const systemLog = document.querySelector(".system-log");
-      if (systemLog && window.lastProxyEnabled !== proxyEnabled) {
+      if (systemLog && window.lastProxyEnabled !== (statusData.proxy_enabled === '1')) {
         const currentTime = new Date().toLocaleTimeString("vi-VN");
-        const statusMessage = proxyEnabled ? "✅ Proxy hiện đang BẬT" : "⛔ Proxy hiện đang TẮT";
+        const statusMessage = statusData.proxy_enabled === '1' ? "✅ Proxy hiện đang BẬT" : "⛔ Proxy hiện đang TẮT";
         systemLog.textContent += `\n[${currentTime}] ${statusMessage}`;
         systemLog.scrollTop = systemLog.scrollHeight;
-        window.lastProxyEnabled = proxyEnabled;
+        window.lastProxyEnabled = statusData.proxy_enabled === '1';
       }
       
       loadConnectedDevices();
+      
+      // Dọn dẹp bộ nhớ sau khi render
+      setTimeout(() => {
+        cleanupMemory();
+      }, 100);
     })
     .catch(() => {
       const quickStatusElement = document.getElementById("quick-status");
@@ -610,6 +522,163 @@ function loadStatus() {
     });
 }
 
+// Hàm cleanup event listeners
+function cleanupProxyEventListeners() {
+  const checkboxes = document.querySelectorAll(".proxy-checkbox");
+  checkboxes.forEach(checkbox => {
+    // Xóa tất cả event listeners
+    const newCheckbox = checkbox.cloneNode(true);
+    checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+  });
+}
+
+// Hàm setup event listeners mới
+function setupProxyEventListeners() {
+  const checkboxes = document.querySelectorAll(".proxy-checkbox");
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener("change", handleProxyCheckboxChange);
+  });
+}
+
+// Hàm xử lý thay đổi checkbox
+function handleProxyCheckboxChange() {
+  const checked = document.querySelectorAll(".proxy-checkbox:checked");
+  selectedAliases = Array.from(checked).map(cb => cb.dataset.alias);
+  updateActionButtonsVisibility();
+}
+
+// Hàm render proxy list
+function renderProxyList(proxies) {
+  const proxyListElement = document.getElementById("proxy-list");
+  if (!proxyListElement) return;
+  
+  proxies.forEach((proxy, index) => {
+    const proxyCard = document.createElement('div');
+    proxyCard.className = "device-card";
+    proxyCard.innerHTML = `
+      <div class="flex items-center w-full">
+        <div class="flex items-center gap-2">
+          <input type="checkbox" class="proxy-checkbox" data-alias="${proxy._name || proxy.real_name}">
+          <button class="icon-btn" onclick="deleteProxy('${proxy.real_name}')">🗑️</button>
+          <button class="icon-btn" onclick="toggleIp(${index}, '${proxy.alias}')">👁️</button>
+          <button class="icon-btn" onclick="editProxy(${index})">✏️</button>
+        </div>
+      </div>
+      <h2 class="proxy-alias text-base font-semibold truncate">🏷️ Tên: ${proxy.alias || "Không tên"}</h2>
+      <p>
+        <span style="color:#2563eb; font-weight:600;">🌐 IP:</span>
+        <span
+          id="ip-${index}"
+          class="proxy-ip blur-sm ip-highlight"
+          title="Click để copy"
+          onclick="copyToClipboard('${proxy.ip}')"
+          style="cursor:pointer;"
+        >${proxy.ip}</span>
+      </p>
+      <p>🔌 Port: <span class="proxy-port">${proxy.port}</span></p>
+      <p>📡 Protocol: <span class="proxy-protocol">${proxy.protocol}</span></p>
+      
+      
+      <p>🔗 URL Test: <span id="urltest-status-${index}" class="urltest-result">Đang kiểm tra...</span></p>
+    `;
+    proxyListElement.appendChild(proxyCard);
+  });
+}
+
+// Hàm cleanup bộ nhớ
+function cleanupMemory() {
+  // Giải phóng các biến tạm
+  const tempElements = document.querySelectorAll('.temp-element');
+  tempElements.forEach(el => el.remove());
+  
+  // Dọn dẹp các tham chiếu không cần thiết
+  if (window.tempData) {
+    window.tempData = null;
+  }
+  
+  // Yêu cầu garbage collection nếu có thể
+  if (window.gc) {
+    window.gc();
+  }
+  
+  // Log memory usage để debug
+  if (performance.memory) {
+    console.log('Memory usage after cleanup:', performance.memory.usedJSHeapSize);
+  }
+}
+
+// Các hàm helper khác...
+function updateSystemInfo(statusData) {
+  document.getElementById("hostname").textContent = statusData.hostname || '-';
+  document.getElementById('model').textContent = statusData.model || '-';
+  document.getElementById("uptime").textContent = statusData.uptime || '-';
+  document.getElementById("kernel").textContent = statusData.kernel || '-';
+  document.getElementById('version').textContent = statusData.version || '-';
+  document.getElementById('loadavg').textContent = statusData.loadavg || '-';
+}
+
+function updateResourceUsage(statusData) {
+  document.getElementById('ram-total').textContent = formatBytes(statusData.ram_total);
+  document.getElementById("ram-used").textContent = formatBytes(statusData.ram_used);
+  document.getElementById("ram-buffer").textContent = formatBytes(statusData.ram_buffer);
+  document.getElementById('ram-cache').textContent = formatBytes(statusData.ram_cache);
+  document.getElementById('ram-percent').textContent = statusData.ram_percent + " %";
+  
+  let ramUsagePercent = 0;
+  if (parseInt(statusData.ram_total, 10) > 0) {
+    ramUsagePercent = parseInt(statusData.ram_used, 10) / parseInt(statusData.ram_total, 10) * 100;
+  }
+  
+  let ramProgressBar = document.querySelector(".ram-progress-bar");
+  if (ramProgressBar) {
+    ramProgressBar.style.width = ramUsagePercent.toFixed(1) + '%';
+  }
+  
+  let ramTextElement = document.getElementById('ram-text');
+  if (ramTextElement) {
+    ramTextElement.textContent = `Sử dụng RAM: ${formatBytes(statusData.ram_used)} / ${formatBytes(statusData.ram_total)} (${ramUsagePercent.toFixed(1)}%)`;
+  }
+  
+  document.getElementById("rom-total").textContent = formatBytes(statusData.rom_total);
+  document.getElementById('rom-used').textContent = formatBytes(statusData.rom_used);
+  document.getElementById("rom-free").textContent = formatBytes(statusData.rom_free);
+  document.getElementById("rom-percent").textContent = statusData.rom_percent + " %";
+  
+  let romUsagePercent = 0;
+  if (statusData.rom_total > 0) {
+    romUsagePercent = parseInt(statusData.rom_used, 10) / parseInt(statusData.rom_total, 10) * 100;
+  }
+  
+  let romProgressBar = document.querySelector('.rom-progress-bar');
+  if (romProgressBar) {
+    romProgressBar.style.width = romUsagePercent.toFixed(1) + '%';
+  }
+  
+  let romTextElement = document.getElementById("rom-text");
+  if (romTextElement) {
+    romTextElement.textContent = `Sử dụng ROM: ${formatBytes(statusData.rom_used)} / ${formatBytes(statusData.rom_total)} (${romUsagePercent.toFixed(1)}%)`;
+  }
+}
+
+function updateProxyStats(total, online, offline) {
+  document.getElementById("proxy-total").textContent = total;
+  document.getElementById("proxy-online").textContent = online + " ✅";
+  document.getElementById("proxy-offline").textContent = offline + " ❌";
+}
+
+function updateProxySwitch(enabled) {
+  document.getElementById("mainSwitch").checked = enabled;
+  document.getElementById("main-proxy-switch").checked = enabled;
+}
+
+function restoreSelectedProxies() {
+  selectedAliases.forEach(alias => {
+    const checkbox = document.querySelector(".proxy-checkbox[data-alias=\"" + alias + "\"]");
+    if (checkbox) {
+      checkbox.checked = true;
+    }
+  });
+}
 
 
 
