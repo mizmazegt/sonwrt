@@ -569,7 +569,7 @@ function renderProxyList(proxies) {
         <span style="color:#2563eb; font-weight:600;">🌐 IP:</span>
         <span
           id="ip-${index}"
-          class="proxy-ip blur-sm ip-highlight"
+          class="proxy-ip ip-highlight"
           title="Click để copy"
           onclick="copyToClipboard('${proxy.ip}')"
           style="cursor:pointer;"
