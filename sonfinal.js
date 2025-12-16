@@ -257,7 +257,7 @@ function showTab(tabName) {
   }
 
   // Bước 6: Thiết lập tác vụ cập nhật tự động mới dựa trên tab được chọn
-  const POLLING_INTERVAL = 30000; // 30 giây
+  const POLLING_INTERVAL = 86400000; // 30 giây
 
   if (tabName === "dashboard") {
     loadStatus();
