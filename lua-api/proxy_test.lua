@@ -34,10 +34,7 @@ if not ip or not port then
 end
 
 -- Lọc lại cho an toàn (tránh code injection)
-if not ip:match("^%d+%.%d+%.%d+%.%d+$") or not port:match("^%d+$") then
-  json_out({ success = false, msg = "IP hoặc Port không hợp lệ!" })
-  return
-end
+
 
 if action == "ping" then
   local f = io.popen("ping -c1 -W1 "..ip.." 2>&1")
